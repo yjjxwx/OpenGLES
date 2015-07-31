@@ -54,8 +54,9 @@ public class ShaderUtil {
             int[] compileStates = new int[1];
             GLES20.glGetShaderiv(shaderHandle, GLES20.GL_COMPILE_STATUS, compileStates, 0);
             if (compileStates[0] == GLES20.GL_FALSE) {
+                String error = GLES20.glGetShaderInfoLog(shaderHandle);
                 GLES20.glDeleteShader(shaderHandle);
-                throw new RuntimeException("Compile Shader Error");
+                throw new RuntimeException("Compile Shader Error: " + source + " \n" + error);
             }
         }
         return shaderHandle;
