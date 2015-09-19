@@ -1,24 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                xmlns:tools="http://schemas.android.com/tools"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/ic_launcher"
-                tools:context=".MainActivity">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/holo_blue_bright">
 
-
-
-    <gles.alex.com.opengles.ui.MainView
-        android:id="@+id/main_view"
+    <GridView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        />
-    <Button
-        android:id="@+id/button_id"
-        android:text="@string/press"
-        android:layout_alignParentBottom="true"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        />
+        android:id="@+id/gridView"
+        android:numColumns="4"
+        android:isScrollContainer="true"
+        android:layout_centerInParent="true" />
 
 </RelativeLayout>

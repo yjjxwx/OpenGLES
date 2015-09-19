@@ -1,19 +1,16 @@
 package gles.alex.com.opengles.renderer;
 
-import android.animation.Animator;
-import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
-import android.os.SystemClock;
 import android.util.Log;
 
 import java.nio.FloatBuffer;
-import java.util.Objects;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -26,7 +23,7 @@ import gles.alex.com.opengles.util.ShaderUtil;
 /**
  * Created by alex on 15-6-25.
  */
-public class MainViewRenderer implements GLSurfaceView.Renderer {
+public class GaussianBlurRenderer implements GLSurfaceView.Renderer {
 
     private int program = 0;
 
@@ -34,7 +31,7 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
     private String fragmentShaderSource;
     private FloatBuffer mVertices;
     private FloatBuffer mCoords;
-    private Activity mActivity;
+    private Context mContext;
     private volatile int control;
     private int mWidth;
     private int mHeight;
@@ -54,8 +51,8 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
     };
 
 
-    public MainViewRenderer(Activity activity, String vertextShaderSource, String fragmentShaderSource) {
-        mActivity = activity;
+    public GaussianBlurRenderer(Context activity, String vertextShaderSource, String fragmentShaderSource) {
+        mContext = activity;
         this.vertextShaderSource = vertextShaderSource;
         this.fragmentShaderSource = fragmentShaderSource;
         mVertices = BufferUtils.getFloatBuffer(mVerticeData);
@@ -81,7 +78,7 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
         GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-        Bitmap bmp = BitmapFactory.decodeResource(mActivity.getResources(), R.drawable.girl);
+        Bitmap bmp = BitmapFactory.decodeResource(mContext.getResources(), R.drawable.girl);
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
         bmp.recycle();
         texW = 256;
@@ -195,12 +192,6 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
         GLES20.glDisableVertexAttribArray(positionLoc);
         GLES20.glDisableVertexAttribArray(coordsLoc);
         GLES20.glEnable(GLES20.GL_BLEND);
-        /*
-        endTime = System.nanoTime();
-        long costtime = endTime - startTime;
-        Log.d("yjjxwx", "Render Frame Time: " + (costtime/1000000.0));
-        Log.d("yjjxwx", "FPS: " + 60.0 * Math.pow(10, 6)/costtime);
-        */
     }
     Framebuffer fbScale;
     Framebuffer fbV;
