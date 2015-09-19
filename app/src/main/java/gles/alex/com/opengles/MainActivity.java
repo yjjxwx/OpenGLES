@@ -46,7 +46,6 @@ public class MainActivity extends ActionBarActivity {
                 onButtonClick();
             }
         });
-
     }
 
     private void onButtonClick() {

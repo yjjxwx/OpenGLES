@@ -56,7 +56,8 @@ public class ShaderUtil {
             if (compileStates[0] == GLES20.GL_FALSE) {
                 String error = GLES20.glGetShaderInfoLog(shaderHandle);
                 GLES20.glDeleteShader(shaderHandle);
-                throw new RuntimeException("Compile Shader Error: " + source + " \n" + error);
+                Log.e("yjjxwx","Compile Shader Error: " + " \n" + error);
+                throw new RuntimeException("Compile Shader Error: " + error);
             }
         }
         return shaderHandle;

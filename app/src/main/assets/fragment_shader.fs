@@ -6,9 +6,10 @@ const float FOUR = 4.0;
 
 const int ZERO_I = 0;
 const int ONE_I = 1;
+const int TWO_I = 2;
 const int THREE_I = 3;
-const int SIXTEEN = 16;
 const int FOUR_I = 4;
+const int SIXTEEN_I = 16;
 const float M_PI = 3.14159265359;
 
 uniform sampler2D blurSource;
@@ -22,32 +23,21 @@ uniform mat4 samplerStepX1;
 uniform mat4 samplerStepX2;
 uniform mat4 samplerStepY1;
 uniform mat4 samplerStepY2;
+uniform float alpha;
 // action = 0, x blur
 // action = 1, y blur
 // action = 2, scale
 uniform int action;
-
 varying vec2 outTexCoords;
-const float SIGMA = 0.25;
-float getGaussianWeight(float x) {
-    return ONE/sqrt(TWO*M_PI*SIGMA*SIGMA) * exp(-(x*x)/(TWO*SIGMA*SIGMA));
-}
 
-// Calculate the weight.
-// Note that len must less 16
-mat4 getWeights(int len) {
-    mat4 result = mat4(1.0);
-    float sum = 0.0;
-    for(int x = 0; x < len; x++) {
-        float value = getGaussianWeight(float(x));
-        result[x/4][int(mod(float(x),4.0))] = value;
-        sum += value;
-    }
-    for(int x = 0; x < len; x++) {
-        result[x/4][int(mod(float(x),4.0))] = result[x/4][int(mod(float(x),4.0))]/(sum - result[0][0] + sum);
-    }
-    return result;
-}
+const mat4 offset = mat4(0.0, 1.0, 2.0, 3.0,
+                            4.0, 5.0, 6.0, 7.0,
+                            8.0, 9.0, 10.0, 11.0,
+                            12.0, 13.0, 14.0, 15.0);
+const mat4 weight = mat4(0.2270270270, 0.1945945946, 0.1216216216, 0.0540540541,
+                            0.0162162162, 0.0, 0.0, 0.0,
+                            0.0, 0.0, 0.0, 0.0,
+                            0.0, 0.0, 0.0, 0.0);
 
 vec2 getUV(float u, float v) {
     if (u < ZERO) {
@@ -68,40 +58,61 @@ vec2 getUV(vec2 v) {
     return getUV(v.x, v.y);
 }
 
-void main()
+void main(void)
 {
+
     if (control == ONE_I) {
         if (action == ZERO_I || action == ONE_I) {
+
             vec4 sum = vec4(ZERO);
-            sum += texture2D(blurSource, outTexCoords) * weights1[0][0];
+            sum += (texture2D(blurSource, outTexCoords) * weights1[ZERO_I][ZERO_I]);
             int len = samplerRadius;
-            float sv = 0.0;
-            for(int i = 1; i < len; i++) {
-                if (action == 0) { // x direction blur
-                    sum += texture2D(blurSource, getUV(outTexCoords.x + samplerStepX1[i/4][int(mod(float(i),4.0))] , outTexCoords.y)) * weights1[i/4][int(mod(float(i),4.0))];
-                    sum += texture2D(blurSource, getUV(outTexCoords.x - samplerStepX1[i/4][int(mod(float(i),4.0))], outTexCoords.y)) * weights1[i/4][int(mod(float(i),4.0))];
-                } else if (action == 1){ // y direction blur
-                    sum += texture2D(blurSource, getUV(outTexCoords.x, outTexCoords.y + samplerStepY1[i/4][int(mod(float(i),4.0))])) * weights1[i/4][int(mod(float(i),4.0))];
-                    sum += texture2D(blurSource, getUV(outTexCoords.x, outTexCoords.y - samplerStepY1[i/4][int(mod(float(i),4.0))])) * weights1[i/4][int(mod(float(i),4.0))];
+            if (samplerRadius > SIXTEEN_I) {
+                len = SIXTEEN_I;
+            }
+            for(int i = ONE_I; i < len; i++) {
+
+                if (action == ZERO_I) { // x direction blur
+                    vec4 sv = samplerStepX1[i/FOUR_I];
+                    float stemp = sv[int(mod(float(i),FOUR))];
+                    vec4 wv = weights1[i/FOUR_I];
+                    float wtemp = wv[int(mod(float(i),FOUR))];
+                    sum += (texture2D(blurSource, getUV(outTexCoords.x + stemp, outTexCoords.y))) * wtemp;
+                    sum += (texture2D(blurSource, getUV(outTexCoords.x - stemp, outTexCoords.y))) * wtemp;
+                } else if (action == ONE_I){ // y direction blur
+                    vec4 sv = samplerStepY1[i/FOUR_I];
+                    float stemp = sv[int(mod(float(i),FOUR))];
+                    vec4 wv = weights1[i/FOUR_I];
+                    float wtemp = wv[int(mod(float(i),FOUR))];
+                    sum += (texture2D(blurSource, getUV(outTexCoords.x, outTexCoords.y + stemp))) * wtemp;
+                    sum += (texture2D(blurSource, getUV(outTexCoords.x, outTexCoords.y - stemp))) * wtemp;
                 }
             }
-            if (samplerRadius > 16) {
-                len = samplerRadius - 16;
-                for(int i = 0; i < len; i++) {
-                    if (action == 0) { // x direction blur
-                        sum += texture2D(blurSource, getUV(outTexCoords.x + samplerStepX2[i/4][int(mod(float(i),4.0))] , outTexCoords.y)) * weights2[i/4][int(mod(float(i),4.0))];
-                        sum += texture2D(blurSource, getUV(outTexCoords.x - samplerStepX2[i/4][int(mod(float(i),4.0))], outTexCoords.y)) * weights2[i/4][int(mod(float(i),4.0))];
-                    } else if (action == 1){ // y direction blur
-                        sum += texture2D(blurSource, getUV(outTexCoords.x, outTexCoords.y + samplerStepY2[i/4][int(mod(float(i),4.0))])) * weights2[i/4][int(mod(float(i),4.0))];
-                        sum += texture2D(blurSource, getUV(outTexCoords.x, outTexCoords.y - samplerStepY2[i/4][int(mod(float(i),4.0))])) * weights2[i/4][int(mod(float(i),4.0))];
+            if (samplerRadius > SIXTEEN_I) {
+                len = samplerRadius - SIXTEEN_I;
+                for(int i = ZERO_I; i < len; i++) {
+                    if (action == ZERO_I) { // x direction blur
+                        vec4 sv = samplerStepX2[i/FOUR_I];
+                        float stemp = sv[int(mod(float(i),FOUR))];
+                        vec4 wv = weights2[i/FOUR_I];
+                        float wtemp = wv[int(mod(float(i),FOUR))];
+                        sum += (texture2D(blurSource, getUV(outTexCoords.x + stemp , outTexCoords.y))) * wtemp;
+                        sum += (texture2D(blurSource, getUV(outTexCoords.x - stemp, outTexCoords.y))) * wtemp;
+                    } else if (action == ONE_I){ // y direction blur
+                        vec4 sv = samplerStepY2[i/FOUR_I];
+                        float stemp = sv[int(mod(float(i),FOUR))];
+                        vec4 wv = weights2[i/FOUR_I];
+                        float wtemp = wv[int(mod(float(i),FOUR))];
+                        sum += (texture2D(blurSource, getUV(outTexCoords.x, outTexCoords.y + stemp))) * wtemp;
+                        sum += (texture2D(blurSource, getUV(outTexCoords.x, outTexCoords.y - stemp))) * wtemp;
                     }
                 }
             }
-            //gl_FragColor = sum / float(samplerRadius/2);
+            sum.a *= alpha;
             gl_FragColor = sum;
-        } else if (action == 2){
+        } else if (action == TWO_I){
             gl_FragColor = texture2D(blurSource, outTexCoords);
-        } else if (action == 3) {
+        } else if (action == THREE_I) {
             gl_FragColor = texture2D(blurSource, outTexCoords);
         }
     } else {

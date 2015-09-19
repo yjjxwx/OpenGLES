@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
+import android.os.SystemClock;
 import android.util.Log;
 
 import java.nio.FloatBuffer;
@@ -35,23 +36,21 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
     private FloatBuffer mCoords;
     private Activity mActivity;
     private volatile int control;
-    private float mTexelWidthOffset =  0.05f;
-    private float mTexelHeightOffset = 0.05f;
     private int mWidth;
     private int mHeight;
     private int[] mTextures;
 
     private float [] mVerticeData = new float[] {
             -1.0f, -1.0f, 0.0f,
-            1.0f, -1.0f, 0.0f,
+            -1.0f, 1.0f, 0.0f,
             1.0f, 1.0f, 0.0f,
-            -1.0f, 1.0f, 0.0f
+            1.0f, -1.0f, 0.0f
     };
     private float [] mCoordsData = new float[] {
             0, 0,
-            1, 0,
+            0, 1,
             1, 1,
-            0, 1
+            1, 0
     };
 
 
@@ -67,7 +66,7 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         program = ShaderUtil.createProgram(vertextShaderSource, fragmentShaderSource);
     }
-
+    volatile float mRadius = 8f;
     @Override
     public void onSurfaceChanged(GL10 gl, int width, int height) {
         mWidth = width;
@@ -86,7 +85,7 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
         bmp.recycle();
         texW = 256;
-        texH = texW * mHeight / mWidth;
+        texH = (int)(1.0 * texW * mHeight / mWidth);
         //texH = texW;
         fbScale = new Framebuffer(texW, texH);
         fbH = new Framebuffer(texW,texH);
@@ -94,34 +93,46 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
     }
     int texW;
     int texH;
+    private long startTime;
+    private long endTime;
+    private float [] weights;
+    private float mAlpha = 1.0f;
+
     @Override
     public void onDrawFrame(GL10 gl) {
+        startTime = System.nanoTime();
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+        GLES20.glClearColor(0,0,0,0);
         GLES20.glUseProgram(program);
         int positionLoc = GLES20.glGetAttribLocation(program, "a_position");
         int coordsLoc = GLES20.glGetAttribLocation(program, "a_texCoord");
+        GLES20.glEnable(GLES20.GL_BLEND);
+        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
         GLES20.glEnableVertexAttribArray(positionLoc);
         GLES20.glVertexAttribPointer(positionLoc, 3, GLES20.GL_FLOAT, false, 0, mVertices);
         GLES20.glEnableVertexAttribArray(coordsLoc);
         GLES20.glVertexAttribPointer(coordsLoc, 2, GLES20.GL_FLOAT, false, 0, mCoords);
 
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "control"), control);
-        GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "screen_width"), mWidth);
-        GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "screen_height"), mHeight);
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextures[0]);
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "blurSource"), 0);
 
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "action"), 1);
-
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(program,"alpha"), mAlpha);
 
         if (control == 1) {
-
-            float[] weights = getWeights(getRadius());
+            if (weights == null) {
+                weights = getWeights(getRadius());
+                for (float i : weights) {
+                    Log.d("yjjxwx", i + " ");
+                }
+            }
             GLES20.glUniform1i(GLES20.glGetUniformLocation(program,"samplerRadius"), (int)getRadius());
-            float[] samplerStepXs = getSamplerStepX((int)getRadius());
-            float[] samplerStepYs = getSamplerStepY((int)getRadius());
+
+            float[] samplerStepXs = getSamplerStepX((int)getRadius(), texW);
+            float[] samplerStepYs = getSamplerStepY((int)getRadius(), texH);
 
             float[] tmp = new float[16];
             System.arraycopy(weights, 0, tmp, 0, weights.length > 16 ? 16: weights.length);
@@ -146,7 +157,6 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
             }
 
             // create render target
-            GLES20.glViewport(0, 0, texW, texH);
             fbScale.bind();
             {
                 GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "action"), 2);
@@ -155,6 +165,8 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
 
             fbH.bind();
             {
+                GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "screen_width"), texW);
+                GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "screen_height"), texH);
                 GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "action"), 0);
                 GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + 1);
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, fbScale.getColorTexture());
@@ -172,6 +184,7 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
             }
             fbV.unbind();
 
+            //fbH.unbind();
             GLES20.glViewport(0, 0, mWidth, mHeight);
             GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "action"), 3);
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + 3);
@@ -181,6 +194,13 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, 4);
         GLES20.glDisableVertexAttribArray(positionLoc);
         GLES20.glDisableVertexAttribArray(coordsLoc);
+        GLES20.glEnable(GLES20.GL_BLEND);
+        /*
+        endTime = System.nanoTime();
+        long costtime = endTime - startTime;
+        Log.d("yjjxwx", "Render Frame Time: " + (costtime/1000000.0));
+        Log.d("yjjxwx", "FPS: " + 60.0 * Math.pow(10, 6)/costtime);
+        */
     }
     Framebuffer fbScale;
     Framebuffer fbV;
@@ -192,17 +212,16 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
             control = 0;
         }
         if (am == null) {
-            am = ObjectAnimator.ofFloat(1.0f, 32.0f);
+            am = ValueAnimator.ofFloat(0.0f, 1.0f);
+            am.setDuration(2000);
             am.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
-                    float value = (float)animation.getAnimatedValue();
-                    mRadius = value;
+                    mAlpha = (float)animation.getAnimatedValue();
                 }
             });
-            am.setDuration(2000);
-            am.start();
-        } else {
+        }
+        if (!am.isRunning() && control == 1) {
             am.end();
             am.start();
         }
@@ -213,28 +232,33 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
     public float getRadius() {
         return mRadius;
     }
-    volatile float mRadius = 8f;
+
 
     public static float[] getWeights(float radius) {
         if (radius > 32) {
             throw new RuntimeException("SampleCount must less equals than 32");
         }
         float weights[] = GaussianFunction.getWeights(radius);
+        float sum = 0.0f;
+        for(float i: weights) {
+            sum += i;
+        }
+        Log.d("yjjxwx",  " Sum :  " + (2*sum-weights[0]));
         return weights;
     }
 
-    public float[] getSamplerStepX(int samplerCount) {
+    public float[] getSamplerStepX(int samplerCount, int width) {
         float[] ssx = new float[samplerCount];
         for (int i = 0; i < samplerCount; ++i) {
-            ssx[i] = i * 1.0f / texW;
+            ssx[i] = i * 1.0f / width;
         }
         return ssx;
     }
 
-    public float[] getSamplerStepY(int samplerCount) {
+    public float[] getSamplerStepY(int samplerCount, int height) {
         float[] ssy = new float[samplerCount];
         for (int i = 0; i < samplerCount; ++i) {
-            ssy[i] = i * 1.0f / texH;
+            ssy[i] = i * 1.0f / height;
         }
         return ssy;
     }

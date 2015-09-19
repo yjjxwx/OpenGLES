@@ -18,16 +18,18 @@ public class GaussianFunction {
             return weights;
         }
 
-        float sigma = samplerCount * 6.0f;
+        float sigma = samplerCount / 3.0f;
         double sumWeights = 0.0;
         for (int i = 0; i < samplerCount; ++i) {
             weights[i] = kernel(i, sigma);
             sumWeights += weights[i];
         }
         sumWeights = 2 * sumWeights - weights[0];
+
         for(int i = 0; i < samplerCount; ++i) {
             weights[i] /= sumWeights;
         }
+
         return weights;
     }
     private static float kernel(double distance, double sigma) {
